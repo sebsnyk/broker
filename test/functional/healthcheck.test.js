@@ -1,6 +1,6 @@
 const test = require('tap-only');
 const path = require('path');
-const request = require('request');
+const got = require('got');
 const app = require('../../lib');
 const root = __dirname;
 
@@ -46,27 +46,26 @@ test('proxy requests originating from behind the broker client', (t) => {
   // instantiated and connected later
   let customHealthClient;
 
-  t.test('server healthcheck', (t) => {
-    request({ url: serverHealth, json: true }, (err, res) => {
-      if (err) {
-        return t.threw(err);
-      }
+  t.test('server healthcheck', async (t) => {
+    try {
+      const res = await got(serverHealth, { responseType: 'json' });
 
       t.equal(res.statusCode, 200, '200 statusCode');
       t.equal(res.body.ok, true, '{ ok: true } in body');
       t.ok(res.body.version, 'version in body');
-      t.end();
-    });
+    } catch (err) {
+      if (err) {
+        return t.threw(err);
+      }
+    }
   });
 
   // wait for the client to successfully connect to the server and identify itself
   server.io.once('connection', (socket) => {
     socket.once('identify', () => {
-      t.test('client healthcheck after connection', (t) => {
-        request({ url: clientHealth, json: true }, (err, res) => {
-          if (err) {
-            return t.threw(err);
-          }
+      t.test('client healthcheck after connection', async (t) => {
+        try {
+          const res = await got(clientHealth, { responseType: 'json' });
 
           t.equal(res.statusCode, 200, '200 statusCode');
           t.equal(res.body.ok, true, '{ ok: true } in body');
@@ -77,15 +76,16 @@ test('proxy requests originating from behind the broker client', (t) => {
           );
           t.ok(res.body.brokerServerUrl, 'brokerServerUrl in body');
           t.ok(res.body.version, 'version in body');
-          t.end();
-        });
-      });
-
-      t.test('check connection-status with connected client', (t) => {
-        request({ url: connectionStatus, json: true }, (err, res) => {
+        } catch (err) {
           if (err) {
             return t.threw(err);
           }
+        }
+      });
+
+      t.test('check connection-status with connected client', async (t) => {
+        try {
+          const res = await got(connectionStatus, { responseType: 'json' });
 
           const expectedFilters = require('../fixtures/client/filters.json');
 
@@ -98,25 +98,32 @@ test('proxy requests originating from behind the broker client', (t) => {
             expectedFilters,
             'correct client filters in body',
           );
-          t.end();
-        });
+        } catch (err) {
+          if (err) {
+            return t.threw(err);
+          }
+        }
       });
 
       t.test('check connection-status after client disconnected', (t) => {
         client.close();
-        setTimeout(() => {
-          request({ url: connectionStatus, json: true }, (err, res) => {
+        setTimeout(async () => {
+          try {
+            const res = await got(connectionStatus, {
+              responseType: 'json',
+              throwHttpErrors: false,
+            });
+
+            t.equal(res.statusCode, 404, '404 statusCode');
+          } catch (err) {
             if (err) {
               return t.threw(err);
             }
-
-            t.equal(res.statusCode, 404, '404 statusCode');
-            t.end();
-          });
+          }
         }, 100);
       });
 
-      t.test('misconfigured client fails healthcheck', (t) => {
+      t.test('misconfigured client fails healthcheck', async (t) => {
         const badClient = app.main({
           port: clientPort,
           config: {
@@ -124,10 +131,11 @@ test('proxy requests originating from behind the broker client', (t) => {
           },
         });
 
-        request({ url: clientHealth, json: true }, (err, res) => {
-          if (err) {
-            return t.threw(err);
-          }
+        try {
+          const res = await got(clientHealth, {
+            responseType: 'json',
+            throwHttpErrors: false,
+          });
 
           t.equal(res.statusCode, 500, '500 statusCode');
           t.equal(res.body.ok, false, '{ ok: false } in body');
@@ -140,33 +148,33 @@ test('proxy requests originating from behind the broker client', (t) => {
           t.ok(res.body.version, 'version in body');
 
           badClient.close();
-          setTimeout(() => {
-            t.end();
-          }, 100);
-        });
+        } catch (err) {
+          if (err) {
+            return t.threw(err);
+          }
+        }
       });
 
       t.test('check connection-status after client re-connected', (t) => {
         client = app.main({ port: clientPort });
-        setTimeout(() => {
-          request({ url: connectionStatus, json: true }, (err, res) => {
-            if (err) {
-              return t.threw(err);
-            }
+        setTimeout(async () => {
+          try {
+            const res = await got(connectionStatus, { responseType: 'json' });
 
             t.equal(res.statusCode, 200, '200 statusCode');
             t.equal(res.body.ok, true, '{ ok: true } in body');
             t.ok(res.body.clients[0].version, 'client version in body');
-            t.end();
-          });
+          } catch (err) {
+            if (err) {
+              return t.threw(err);
+            }
+          }
         }, 20);
       });
 
-      t.test('client healthcheck after reconnection', (t) => {
-        request({ url: clientHealth, json: true }, (err, res) => {
-          if (err) {
-            return t.threw(err);
-          }
+      t.test('client healthcheck after reconnection', async (t) => {
+        try {
+          const res = await got(clientHealth, { responseType: 'json' });
 
           t.equal(res.statusCode, 200, '200 statusCode');
           t.equal(res.body.ok, true, '{ ok: true } in body');
@@ -177,8 +185,11 @@ test('proxy requests originating from behind the broker client', (t) => {
           );
           t.ok(res.body.brokerServerUrl, 'brokerServerUrl in body');
           t.ok(res.body.version, 'version in body');
-          t.end();
-        });
+        } catch (err) {
+          if (err) {
+            return t.threw(err);
+          }
+        }
       });
 
       t.test('custom healthcheck endpoint', (t) => {
@@ -191,17 +202,20 @@ test('proxy requests originating from behind the broker client', (t) => {
 
         server.io.once('connection', (socket) => {
           socket.once('identify', () => {
-            t.test('client custom healthcheck', (t) => {
-              request({ url: customClientHealth, json: true }, (err, res) => {
-                if (err) {
-                  return t.threw(err);
-                }
+            t.test('client custom healthcheck', async (t) => {
+              try {
+                const res = await got(customClientHealth, {
+                  responseType: 'json',
+                });
 
                 t.equal(res.statusCode, 200, '200 statusCode');
                 t.equal(res.body.ok, true, '{ ok: true } in body');
                 t.ok(res.body.version, 'version in body');
-                t.end();
-              });
+              } catch (err) {
+                if (err) {
+                  return t.threw(err);
+                }
+              }
             });
             t.end();
           });

@@ -1,6 +1,6 @@
 const test = require('tap-only');
 const path = require('path');
-const request = require('request');
+const got = require('got');
 const app = require('../../lib');
 const root = __dirname;
 
@@ -30,7 +30,7 @@ test('broker client systemcheck endpoint', (t) => {
 
   const clientUrl = `http://localhost:${clientPort}`;
 
-  t.test('good validation url, custom endpoint', (t) => {
+  t.test('good validation url, custom endpoint', async (t) => {
     const client = app.main({
       port: clientPort,
       config: {
@@ -39,33 +39,32 @@ test('broker client systemcheck endpoint', (t) => {
         brokerServerUrl: 'http://localhost:12345',
         brokerClientValidationUrl: 'https://snyk.io',
         brokerSystemcheckPath: '/custom-systemcheck',
+        brokerClientValidationJsonDisabled: true,
       },
     });
 
-    request(
-      { url: `${clientUrl}/custom-systemcheck`, json: true },
-      (err, res) => {
-        if (err) {
-          return t.threw(err);
-        }
+    try {
+      const res = await got(`${clientUrl}/custom-systemcheck`, {
+        responseType: 'json',
+      });
 
-        t.equal(res.statusCode, 200, '200 statusCode');
-        t.equal(res.body.ok, true, '{ ok: true } in body');
-        t.equal(
-          res.body.brokerClientValidationUrl,
-          'https://snyk.io',
-          'validation url present',
-        );
+      t.equal(res.statusCode, 200, '200 statusCode');
+      t.equal(res.body.ok, true, '{ ok: true } in response body');
+      t.equal(
+        res.body.brokerClientValidationUrl,
+        'https://snyk.io',
+        'validation url present',
+      );
 
-        client.close();
-        setTimeout(() => {
-          t.end();
-        }, 100);
-      },
-    );
+      client.close();
+    } catch (err) {
+      if (err) {
+        return t.threw(err);
+      }
+    }
   });
 
-  t.test('good validation url, authorization header', (t) => {
+  t.test('good validation url, authorization header', async (t) => {
     const client = app.main({
       port: clientPort,
       config: {
@@ -78,10 +77,10 @@ test('broker client systemcheck endpoint', (t) => {
       },
     });
 
-    request({ url: `${clientUrl}/systemcheck`, json: true }, (err, res) => {
-      if (err) {
-        return t.threw(err);
-      }
+    try {
+      const res = await got(`${clientUrl}/systemcheck`, {
+        responseType: 'json',
+      });
 
       t.equal(res.statusCode, 200, '200 statusCode');
       t.equal(res.body.ok, true, '{ ok: true } in body');
@@ -91,23 +90,24 @@ test('broker client systemcheck endpoint', (t) => {
         'validation url present',
       );
       t.ok(
-        res.body.testResponse.body.headers['User-Agent'],
+        res.body.testResponse.headers['User-Agent'],
         'user-agent header is present in validation request',
       );
       t.equal(
-        res.body.testResponse.body.headers.Authorization,
+        res.body.testResponse.headers.Authorization,
         'token my-special-access-token',
         'proper authorization header in validation request',
       );
 
       client.close();
-      setTimeout(() => {
-        t.end();
-      }, 100);
-    });
+    } catch (err) {
+      if (err) {
+        return t.threw(err);
+      }
+    }
   });
 
-  t.test('good validation url, basic auth', (t) => {
+  t.test('good validation url, basic auth', async (t) => {
     const client = app.main({
       port: clientPort,
       config: {
@@ -119,10 +119,10 @@ test('broker client systemcheck endpoint', (t) => {
       },
     });
 
-    request({ url: `${clientUrl}/systemcheck`, json: true }, (err, res) => {
-      if (err) {
-        return t.threw(err);
-      }
+    try {
+      const res = await got(`${clientUrl}/systemcheck`, {
+        responseType: 'json',
+      });
 
       t.equal(res.statusCode, 200, '200 statusCode');
       t.equal(res.body.ok, true, '{ ok: true } in body');
@@ -132,26 +132,27 @@ test('broker client systemcheck endpoint', (t) => {
         'validation url present',
       );
       t.ok(
-        res.body.testResponse.body.headers['User-Agent'],
+        res.body.testResponse.headers['User-Agent'],
         'user-agent header is present in validation request',
       );
       const expectedAuthHeader = `Basic ${Buffer.from(
         'username:password',
       ).toString('base64')}`;
       t.equal(
-        res.body.testResponse.body.headers.Authorization,
+        res.body.testResponse.headers.Authorization,
         expectedAuthHeader,
         'proper authorization header in request',
       );
 
       client.close();
-      setTimeout(() => {
-        t.end();
-      }, 100);
-    });
+    } catch (err) {
+      if (err) {
+        return t.threw(err);
+      }
+    }
   });
 
-  t.test('bad validation url', (t) => {
+  t.test('bad validation url', async (t) => {
     const client = app.main({
       port: clientPort,
       config: {
@@ -162,11 +163,11 @@ test('broker client systemcheck endpoint', (t) => {
       },
     });
 
-    request({ url: `${clientUrl}/systemcheck`, json: true }, (err, res) => {
-      if (err) {
-        return t.threw(err);
-      }
-
+    try {
+      const res = await got(`${clientUrl}/systemcheck`, {
+        responseType: 'json',
+        throwHttpErrors: false,
+      });
       t.equal(res.statusCode, 500, '500 statusCode');
       t.equal(res.body.ok, false, '{ ok: false } in body');
       t.equal(
@@ -176,9 +177,10 @@ test('broker client systemcheck endpoint', (t) => {
       );
 
       client.close();
-      setTimeout(() => {
-        t.end();
-      }, 100);
-    });
+    } catch (err) {
+      if (err) {
+        return t.threw(err);
+      }
+    }
   });
 });

@@ -1,6 +1,6 @@
 const test = require('tap-only');
 const path = require('path');
-const request = require('request');
+const got = require('got');
 const app = require('../../lib');
 const { port, createTestServer } = require('../utils');
 
@@ -38,14 +38,17 @@ test('no filters broker', (t) => {
       const token = clientData.token;
       t.plan(2);
 
-      t.test('successfully broker with no filter should reject', (t) => {
+      t.test('successfully broker with no filter should reject', async (t) => {
         const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
         const body = { test: 'body' };
-        request({ url, method: 'post', json: true }, (err, res) => {
-          t.equal(res.statusCode, 401, '401 statusCode');
-          t.notSame(res.body, body, 'body not echoed');
-          t.end();
+        const res = await got(url, {
+          method: 'POST',
+          responseType: 'json',
+          throwHttpErrors: false,
         });
+
+        t.equal(res.statusCode, 401, '401 statusCode');
+        t.notSame(res.body, body, 'body not echoed');
       });
 
       t.test('clean up', (t) => {

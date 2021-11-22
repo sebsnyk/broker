@@ -23,7 +23,7 @@ export function createTestServer() {
 
   echoServerRoutes.get('/test', (req, res) => {
     res.status(200);
-    res.send('All good');
+    res.send({ allGood: 'All good' });
   });
 
   echoServerRoutes.get('/test-blob/1', (req, res) => {

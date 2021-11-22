@@ -1,6 +1,6 @@
 const test = require('tap-only');
 const path = require('path');
-const request = require('request');
+const got = require('got');
 const app = require('../../lib');
 const { createTestServer, port } = require('../utils');
 const root = __dirname;
@@ -46,13 +46,14 @@ test('correctly handle pool of multiple clients with same BROKER_TOKEN', (t) => 
   server.io.once('connection', (socket) => {
     socket.on('identify', (clientData) => {
       const token = clientData.token;
-      t.test('successfully broker POST with 1st connected client', (t) => {
-        const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
-        request({ url, method: 'post', json: true }, (err, res) => {
+      t.test(
+        'successfully broker POST with 1st connected client',
+        async (t) => {
+          const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
+          const res = await got(url, { method: 'POST', responseType: 'json' });
           t.equal(res.statusCode, 200, '200 statusCode');
-          t.end();
-        });
-      });
+        },
+      );
 
       t.test('launch a 2nd client', (t) => {
         server.io.on('connection', (socket) => {
@@ -65,12 +66,10 @@ test('correctly handle pool of multiple clients with same BROKER_TOKEN', (t) => 
         secondClient = app.main({ port: port() - 1 }); // Run it on a different port
       });
 
-      t.test('successfully broker POST with 2nd client', (t) => {
+      t.test('successfully broker POST with 2nd client', async (t) => {
         const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
-        request({ url, method: 'post', json: true }, (err, res) => {
-          t.equal(res.statusCode, 200, '200 statusCode');
-          t.end();
-        });
+        const res = await got(url, { method: 'POST', responseType: 'json' });
+        t.equal(res.statusCode, 200, '200 statusCode');
       });
 
       t.test('close 1st client', (t) => {
@@ -79,12 +78,10 @@ test('correctly handle pool of multiple clients with same BROKER_TOKEN', (t) => 
         t.end();
       });
 
-      t.test('successfully broker POST with 2nd client', (t) => {
+      t.test('successfully broker POST with 2nd client', async (t) => {
         const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
-        request({ url, method: 'post', json: true }, (err, res) => {
-          t.equal(res.statusCode, 200, '200 statusCode');
-          t.end();
-        });
+        const res = await got(url, { method: 'POST', responseType: 'json' });
+        t.equal(res.statusCode, 200, '200 statusCode');
       });
 
       t.test('clean up', (t) => {

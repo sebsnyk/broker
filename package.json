@@ -59,6 +59,7 @@
     "engine.io-client": "^5.1.2",
     "express": "^4.17.1",
     "express-prom-bundle": "^5.1.5",
+    "got": "^11.8.3",
     "js-yaml": "^3.13.1",
     "lodash.escaperegexp": "^4.1.2",
     "lodash.mapvalues": "^4.6.0",

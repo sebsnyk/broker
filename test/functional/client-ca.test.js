@@ -1,5 +1,5 @@
 const test = require('tap-only');
-const request = require('request');
+const got = require('got');
 const path = require('path');
 const app = require('../../lib');
 const { createTestServer, port } = require('../utils');
@@ -54,12 +54,21 @@ test('correctly use supplied CA cert on client for connections', (t) => {
       const token = clientData.token;
       t.test(
         'get an error trying to connect to a server with unknown CA',
-        (t) => {
+        async (t) => {
           const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
-          request({ url, method: 'post', json: true }, (err, res) => {
+          try {
+            const res = await got(url, {
+              method: 'POST',
+              responseType: 'json',
+              throwHttpErrors: false,
+            });
+
             t.equal(res.statusCode, 500, '500 statusCode');
-            t.end();
-          });
+          } catch (err) {
+            if (err) {
+              return t.threw(err);
+            }
+          }
         },
       );
 
@@ -81,20 +90,20 @@ test('correctly use supplied CA cert on client for connections', (t) => {
         client = app.main({ port: clientPort });
       });
 
-      t.test('successfully broker POST with CA set', (t) => {
+      t.test('successfully broker POST with CA set', async (t) => {
         const url = `http://localhost:${serverPort}/broker/${token}/echo-body`;
-        request({ url, method: 'post', json: true }, (err, res) => {
-          t.equal(res.statusCode, 200, '200 statusCode');
-          t.end();
-        });
+        const res = await got(url, { method: 'POST', responseType: 'json' });
+        t.equal(res.statusCode, 200, '200 statusCode');
       });
 
-      t.test('successfully call systemcheck with CA set', (t) => {
+      t.test('successfully call systemcheck with CA set', async (t) => {
         const url = `http://localhost:${clientPort}/systemcheck`;
-        request({ url, json: true }, (err, res) => {
-          t.equal(res.statusCode, 200, '200 statusCode');
-          t.end();
+        const res = await got(url, {
+          responseType: 'json',
+          // TODO: remove this property
+          throwHttpErrors: false,
         });
+        t.equal(res.statusCode, 200, '200 statusCode');
       });
 
       t.test('clean up', (t) => {
