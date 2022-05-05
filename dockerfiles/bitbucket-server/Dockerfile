@@ -1,4 +1,4 @@
-FROM snyk/rhel-ubi-node-16 as base
+FROM snyklabs/rhel-ubi-node-16 as base
 
 MAINTAINER Snyk Ltd
 USER root
@@ -10,7 +10,7 @@ ENV PATH=$PATH:/home/node/.npm-global/bin
 RUN npm install --global snyk-broker
 
 # ===
-FROM snyk/rhel-ubi-node-16
+FROM snyklabs/rhel-ubi-node-16
 
 ENV PATH=$PATH:/home/node/.npm-global/bin
 
